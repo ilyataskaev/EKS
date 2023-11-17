@@ -1,23 +1,45 @@
-## Canary Deployment
+# EKS Cluster Management Script
 
-Create Firrst Deployment:
+This Bash script manages the creation and destruction of an Amazon EKS cluster using `eksctl`. It supports deploying a new cluster with specific configurations like region, node type, and VPC CIDR. Additionally, it can install a cluster autoscaler and NGINX Ingress controller.
 
-```
-k create deployment app-py --image docker.io/ansustiwaz/app-py:latest --port=5000
-k expose deployment app-py
-k create ingress app-py --class=nginx --rule www.ingress.com/=app-py:5000
-```
-Test it:
-```
-#Get IP:
-curl -v a6598b65f85a84a1db747818884ab616-d2ec479b023b351e.elb.eu-central-1.amazonaws.com
-curl --resolve www.ingress.com:80:<IP_ADDRESS_OF_NLB> http://www.ingress.com
+## Prerequisites
+- AWS CLI installed and configured
+- `eksctl` installed
+- `kubectl` installed
+- Helm installed (for NGINX Ingress)
+
+## Configuration
+- `region`: AWS region (default `eu-central-1`)
+- `version`: EKS version (default `'1.27'`)
+- `cidr`: VPC CIDR (default `'10.0.0.0/16'`)
+- `node_type`: EC2 instance type for nodes (default `'t2.small'`)
+
+## Usage
+
+To **create** a cluster:
+```bash
+./cluster.sh -c [name of the cluster]
 ```
 
+To **destroy** a cluster:
+
+```bash
+./cluster.sh -d [name of the cluster]
 ```
-k get ingress app-py
-k create deployment app-py --image docker.io/ansustiwaz/app-py:v2 --port=5000
-k create deployment app-py --image docker.io/ansustiwaz/app-py:v3 --port=5000
-expose deployment app-py-v2
-expose deployment app-py-v3
+
+Example:
+
+```bash
+./cluster.sh -c eks-2023
+./cluster.sh -d eks-2023
 ```
+
+Functions
+
+- `create_cluster`: Creates a new EKS cluster with the specified configurations.
+- `install_autoscaler`: Installs the Kubernetes cluster autoscaler.
+- `install_ingress_nginx`: Installs the NGINX Ingress controller using Helm.
+- `destroy_ingress_nginx`: Uninstalls the NGINX Ingress controller.
+- `delete_cluster`: Deletes the specified EKS cluster and associated resources.
+
+The script includes additional helper functions and error handling to streamline the process of managing EKS clusters.
