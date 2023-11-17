@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: guestbook
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - demo.rusty.systems
+    secretName: demo-cert
+  rules:
+  - host: demo.rusty.systems
+    http:
+      paths:
+      - path: /redis-client
+        pathType: Exact
+        backend:
+          service:
+            name: py-guestbook-frontend
+            port:
+              number: 5000

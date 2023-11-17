@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: app-py-v3
+  name: app-py-v3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-py-v3
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: app-py-v3
+    spec:
+      containers:
+      - image: docker.io/ansustiwaz/app-py:v3
+        name: app-py
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            memory: "500Mi"
+            cpu: "250m"
+          limits:
+            memory: "600Mi"
+            cpu: "500m"

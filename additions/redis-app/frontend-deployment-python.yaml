@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: py-guestbook-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+        app: py-guestbook
+        tier: frontend
+  template:
+    metadata:
+      labels:
+        app: py-guestbook
+        tier: frontend
+    spec:
+      containers:
+      - name: py-redis
+        image: docker.io/ansustiwaz/redis-py:latest
+        env:
+        - name: REDIS_HOST
+          value: "redis-leader"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 5000

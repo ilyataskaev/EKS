@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: py-guestbook-frontend
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+  labels:
+    app: py-guestbook
+    tier: frontend
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 5000
+  selector:
+    app: py-guestbook
+    tier: frontend

@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-py
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: www.ingress.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: app-py
+            port:
+              number: 5000
+        path: /
+        pathType: Exact
