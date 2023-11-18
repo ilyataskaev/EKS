@@ -59,6 +59,8 @@ Congratulations! You have now installed Calico using the Helm 3 chart.
 
 ### Configure VPC CNI Plugin
 
+[AWS Calico guide](https://docs.aws.amazon.com/eks/latest/userguide/calico.html)
+
 If you're using version 1.9.3 or later of the Amazon VPC CNI plugin for Kubernetes, then enable the plugin to add the Pod IP address to an annotation in the calico-kube-controllers-55c98678-gh6cc Pod spec. For more information about this setting, see ANNOTATE_POD_IP
 
 on GitHub.
