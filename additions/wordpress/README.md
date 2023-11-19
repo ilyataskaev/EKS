@@ -63,10 +63,8 @@ Watch deployment status:
 kubectl get pods -w --namespace statefull
 ```
 ## Get administrator credentials
-
+Get MySQL admin credentials for root
 ```bash
-echo "Get MySQL admin credentials:"
-echo "Username: root"
 MYSQL_ROOT_PASSWORD=$(kubectl get secret --namespace statefull mysql -o jsonpath="{.data.mysql-root-password}" | base64 --decode)
 ```
 ## Connect to the database
@@ -76,29 +74,28 @@ kubectl run mysql-client --rm --tty -i --restart='Never' --image docker.io/bitna
 ```
 Connect to primary service as root (read/write):
 ```bash
-echo "mysql -h mysql.statefull.svc.cluster.local -uroot -p\"\$MYSQL_ROOT_PASSWORD\""
+mysql -h mysql.statefull.svc.cluster.local -uroot -p"${MYSQL_ROOT_PASSWORD}"
 ```
-
 Create a new MYSQL user and password:
 ```bash
 WP_DB_PASSWORD=$(openssl rand -base64 15)
 create user 'WP_USER'@'%' identified by ${WP_DB_PASSWORD};
 grant all privileges on WP_DB.* TO 'WP_USER'@'%';
 flush privileges;
-
 ```
-## Deploy Wordpress
-Create a Secret
+# Deploy Wordpress
+## Create a Secret
+
 ```bash
 k create secret generic mysql-pass --from-literal=db_user=WP_USER --from-literal=db_name=WP_DB --from-literal=password=${WP_DB_PASSWORD}
 ```
 
-Deploy WP:
+## Deploy WP
 ```bash
 k apply -f deploy-wordpress.yaml
 ```
 
-Deploy WP Ingress:
+## Deploy WP Ingress
 ```bash
 k apply -f ingress-wp.yaml
 ```
