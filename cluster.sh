@@ -41,14 +41,14 @@ create_cluster() {
     --cluster $cluster_name \
     --approve
 
-  eksctl create nodegroup --cluster=${cluster_name} \
-    --region=$region  \
-    --name=${cluster_name}-ng-public1 \
-    --node-type=${node_type} \
+  eksctl create nodegroup --cluster=$cluster_name \
+    --region ${region}  \
+    --name ${cluster_name}-ng-private-spot1 \
+    --instance-types=t3.small,t3.medium \
     --nodes=1 \
     --nodes-min=1 \
-    --nodes-max=4 \
-    --node-volume-size=20 \
+    --nodes-max=5 \
+    --node-volume-size=10 \
     --ssh-access \
     --ssh-public-key=eks \
     --managed \
@@ -56,8 +56,13 @@ create_cluster() {
     --external-dns-access \
     --full-ecr-access \
     --appmesh-access \
-    --alb-ingress-access
+    --alb-ingress-access \
+    --node-private-networking \
+    --spot
+}
 
+create_csi() {
+  set -x
   # https://stackoverflow.com/questions/75758115/persistentvolumeclaim-is-stuck-waiting-for-a-volume-to-be-created-either-by-ex
   # https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html
   eksctl create iamserviceaccount \
@@ -122,6 +127,7 @@ while getopts "c:d:" OPTKEY; do
             sleep 10
             install_ingress_nginx
             install_autoscaler
+            create_csi
           ;;
         'd')
             while true; do
