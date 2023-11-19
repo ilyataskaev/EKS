@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wordpress
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - wp.rusty.systems
+    secretName: wp-cert
+  rules:
+  - host: wp.rusty.systems
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wordpress
+            port:
+              number: 80

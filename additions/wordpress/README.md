@@ -56,3 +56,78 @@ vault write auth/kubernetes/role/wordpress-app \
       policies=wordpress \
       ttl=24h
 ```
+
+Install ClusterIssuer
+```bash
+cat <<EOF | kubectl create -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-statefull
+spec:
+  acme:
+    # You must replace this email address with your own.
+    # Let's Encrypt will use this to contact you about expiring
+    # certificates, and issues related to your account.
+    email: ansustiwaz@gmail.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      # Secret resource that will be used to store the account's private key.
+      name: letsencrypt-statefull
+    # Add a single challenge solver, HTTP01 using nginx
+    solvers:
+    - http01:
+        ingress:
+          serviceType: ClusterIP
+          ingressClassName: nginx
+EOF
+```
+Generate certificate for `wp.rusty.systems` domain:
+
+```bash
+cat <<EOF | kubectl create -f -
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wp-cert
+  #namespace: cert-manager
+spec:
+  commonName: wp.rusty.systems
+  secretName: wp-cert
+  dnsNames:
+    - wp.rusty.systems
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-statefull
+EOF
+```
+
+** Please be patient while the chart is being deployed **
+
+Tip:
+
+  Watch the deployment status using the command: `kubectl get pods -w --namespace statefull`
+
+Services:
+
+  echo Primary: mysql.statefull.svc.cluster.local:3306
+
+Execute the following to get the administrator credentials:
+
+```bash
+echo Username: root
+MYSQL_ROOT_PASSWORD=$(kubectl get secret --namespace statefull mysql -o jsonpath="{.data.mysql-root-password}" | base64 --decode)
+```
+
+To connect to your database:
+
+  1. Run a pod that you can use as a client:
+
+```bash
+kubectl run mysql-client --rm --tty -i --restart='Never' --image  docker.io/bitnami/mysql:8.0.29-debian-10-r21 --namespace statefull --env MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD --command -- bash
+```
+  2. To connect to primary service (read/write):
+
+```bash
+mysql -h mysql.statefull.svc.cluster.local -uroot -p"$MYSQL_ROOT_PASSWORD"
+```
