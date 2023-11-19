@@ -58,8 +58,9 @@ helm install mysql bitnami/mysql -n statefull
 
 ```
 ## Watch the deployment status
+Watch deployment status:
 ```bash
-echo "Watch deployment status with: kubectl get pods -w --namespace statefull"
+kubectl get pods -w --namespace statefull
 ```
 ## Get administrator credentials
 
