@@ -13,11 +13,6 @@ k create secret generic mysql-pass --from-literal=password=$PASSWORD -n stateful
 k apply -f pvcs.yaml
 ```
 
-
-CREATE USER 'wp'@'%' IDENTIFIED BY 'SKdhMAHZHzzU5BEUfKeZ';
-GRANT ALL PRIVILEGES ON * . * TO 'wp'@'%';
-
-
 ```bash
 kubectl exec vault-0 -- vault write database/config/mysql \
     plugin_name=mysql-database-plugin \
@@ -34,6 +29,7 @@ kubectl exec vault-0 -- vault write database/roles/readonly \
     default_ttl="1h" \
     max_ttl="24h"
 ```
+
 ```bash
 kubectl exec vault-0 -- vault write database/roles/readwrite \
     db_name=mysql \
@@ -41,6 +37,7 @@ kubectl exec vault-0 -- vault write database/roles/readwrite \
     default_ttl="1h" \
     max_ttl="24h"
 ```
+
 ```bash
 vault policy write wordpress - <<EOF
 path "database/creds/readonly" {
