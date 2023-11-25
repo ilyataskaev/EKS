@@ -39,7 +39,6 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: demo-cert
-  namespace: cert-manager
 spec:
   commonName: demo.rusty.systems
   secretName: demo-cert

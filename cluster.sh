@@ -44,10 +44,10 @@ create_cluster() {
   eksctl create nodegroup --cluster=$cluster_name \
     --region ${region}  \
     --name ${cluster_name}-ng-private-spot1 \
-    --instance-types=t3.small,t3.medium \
+    --instance-types=t3.small \
     --nodes=1 \
     --nodes-min=1 \
-    --nodes-max=5 \
+    --nodes-max=3 \
     --node-volume-size=10 \
     --ssh-access \
     --ssh-public-key=eks \
@@ -61,7 +61,7 @@ create_cluster() {
     --spot
 }
 
-create_csi() {
+create_csi_ebs() {
   set -x
   # https://stackoverflow.com/questions/75758115/persistentvolumeclaim-is-stuck-waiting-for-a-volume-to-be-created-either-by-ex
   # https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html
@@ -80,6 +80,26 @@ create_csi() {
     --cluster ${cluster_name} \
     --service-account-role-arn arn:aws:iam::${acoount}:role/AmazonEKS_EBS_CSI_DriverRole \
     --force
+}
+
+create_csi_efs() {
+local role_name=AmazonEKS_EFS_CSI_DriverRole
+eksctl create iamserviceaccount \
+    --name efs-csi-controller-sa \
+    --namespace kube-system \
+    --cluster $cluster_name \
+    --role-name $role_name \
+    --role-only \
+    --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy \
+    --approve
+
+TRUST_POLICY=$(aws iam get-role --role-name $role_name --query 'Role.AssumeRolePolicyDocument' | \
+    sed -e 's/efs-csi-controller-sa/efs-csi-*/' -e 's/StringEquals/StringLike/')
+
+aws iam update-assume-role-policy --role-name $role_name --policy-document "$TRUST_POLICY"
+
+eksctl create addon --cluster $cluster_name --name aws-efs-csi-driver --version v1.7.1-eksbuild.1 \
+    --service-account-role-arn arn:aws:iam::385379752235:role/$role_name --force
 }
 
 install_autoscaler() {
@@ -127,7 +147,8 @@ while getopts "c:d:" OPTKEY; do
             sleep 10
             install_ingress_nginx
             install_autoscaler
-            create_csi
+            create_csi_ebs
+            create_csi_efs
           ;;
         'd')
             while true; do
