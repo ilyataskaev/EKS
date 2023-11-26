@@ -2,7 +2,7 @@
 region=eu-central-1
 version='1.27'
 cidr='10.0.0.0/16'
-node_type='t2.small'
+node_type='t3.small,t3.medium'
 account=$(aws sts get-caller-identity --query Account --output text)
 
 usage() {
@@ -44,7 +44,7 @@ create_cluster() {
   eksctl create nodegroup --cluster=$cluster_name \
     --region ${region}  \
     --name ${cluster_name}-ng-private-spot1 \
-    --instance-types=t3.small \
+    --instance-types=${node_type} \
     --nodes=1 \
     --nodes-min=1 \
     --nodes-max=3 \
@@ -127,10 +127,26 @@ destroy_ingress_nginx() {
   helm uninstall ingress-nginx -n ingress-nginx
 }
 
+descale_all_deployments() {
+  # Get the list of namespaces, excluding header 'NAME'
+  nss=$(kubectl get ns | awk '!/NAME/{print $1}')
+  # Iterate over each namespace
+  for ns in $nss; do
+      # Get the list of deployments in the current namespace
+      els=$(kubectl get deployment -n $ns | awk '!/NAME/{print $1}')
+      # Iterate over each deployment
+      for el in $els; do
+          # Scale down the deployment to 0 replicas
+          echo "Deleting ${ns}/${el}"
+          kubectl scale deployment -n $ns $el --replicas 0
+      done
+  done
+}
+
 delete_cluster() {
   local cluster_name=$1
   local region=$2
-  eksctl delete nodegroup --region=$region  --cluster=${cluster_name} --name=${cluster_name}-ng-public1
+  eksctl delete nodegroup --region=$region  --cluster=${cluster_name} --name ${cluster_name}-ng-private-spot1 --disable-eviction --parallel 5
   eksctl delete cluster   --region=$region  --name=${cluster_name}
 }
 
@@ -160,6 +176,7 @@ while getopts "c:d:" OPTKEY; do
                 esac
             done
             printf "Deleting Cluster ${OPTARG}\n"
+            descale_all_deployments
             destroy_ingress_nginx
             delete_cluster ${OPTARG} ${region}
           ;;
