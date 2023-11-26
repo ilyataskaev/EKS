@@ -55,167 +55,156 @@ create_cluster() {
   local node_min=$7
   local node_max=$8
   local volume_size=$9
-  local ssh_key_name=$10
+  local ssh_key_name=${10}
 
-  echo $cluster_name
-  echo $region
-  echo $version
-  echo $vpccidr
-  echo $node_type
-  echo $node_count
-  echo $node_min
-  echo $node_max
-  echo $volume_size
-  echo $ssh_key_name
+  eksctl create cluster \
+    --name $cluster_name \
+    --region $region  \
+    --version ${version} \
+    --zones ${region}a,${region}b \
+    --vpc-cidr ${vpccidr} \
+    --without-nodegroup \
+    --asg-access \
+    --full-ecr-access \
+    --external-dns-access
 
-  # eksctl create cluster \
-  #   --name $cluster_name \
-  #   --region $region  \
-  #   --version ${version} \
-  #   --zones ${region}a,${region}b \
-  #   --vpc-cidr ${vpccidr} \
-  #   --without-nodegroup \
-  #   --asg-access \
-  #   --full-ecr-access \
-  #   --external-dns-access
+  eksctl utils associate-iam-oidc-provider \
+    --region  $region  \
+    --cluster $cluster_name \
+    --approve
 
-  # eksctl utils associate-iam-oidc-provider \
-  #   --region  $region  \
-  #   --cluster $cluster_name \
-  #   --approve
-
-  # eksctl create nodegroup --cluster=$cluster_name \
-  #   --region ${region}  \
-  #   --name ${cluster_name}-ng-private-spot1 \
-  #   --instance-types=${node_type} \
-  #   --nodes=${node_count} \
-  #   --nodes-min=${node_min} \
-  #   --nodes-max=${node_max} \
-  #   --node-volume-size=${volume_size} \
-  #   --ssh-access \
-  #   --ssh-public-key=${ssh_key_name} \
-  #   --managed \
-  #   --asg-access \
-  #   --external-dns-access \
-  #   --full-ecr-access \
-  #   --appmesh-access \
-  #   --alb-ingress-access \
-  #   --node-private-networking \
-  #   --spot
+  eksctl create nodegroup --cluster=$cluster_name \
+    --region ${region}  \
+    --name ${cluster_name}-ng-private-spot1 \
+    --instance-types=${node_type} \
+    --nodes=${node_count} \
+    --nodes-min=${node_min} \
+    --nodes-max=${node_max} \
+    --node-volume-size=${volume_size} \
+    --ssh-access \
+    --ssh-public-key=${ssh_key_name} \
+    --managed \
+    --asg-access \
+    --external-dns-access \
+    --full-ecr-access \
+    --appmesh-access \
+    --alb-ingress-access \
+    --node-private-networking \
+    --spot
 }
 
-# install_ingress_nginx() {
-#   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-#   helm upgrade --install ingress-nginx ingress-nginx \
-#     --repo https://kubernetes.github.io/ingress-nginx  \
-#     --namespace ingress-nginx \
-#     --create-namespace \
-#     --set-string controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"="nlb"
-# }
+install_ingress_nginx() {
+  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+  helm upgrade --install ingress-nginx ingress-nginx \
+    --repo https://kubernetes.github.io/ingress-nginx  \
+    --namespace ingress-nginx \
+    --create-namespace \
+    --set-string controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"="nlb"
+}
 
-# install_autoscaler() {
-#   kubectl apply -f cluster-autoscaler-autodiscover.yaml
-#   if [ $? -ne 0 ]; then
-#     echo "Failed to apply cluster-autoscaler configuration"
-#     exit 1
-#   else
-#     echo "Cluster autoscaler has been installed successfully."
-#   fi
-#   sleep 10
-#   kubectl -n kube-system annotate deployment.apps/cluster-autoscaler cluster-autoscaler.kubernetes.io/safe-to-evict="false" --overwrite
-# }
+install_autoscaler() {
+  kubectl apply -f cluster-autoscaler-autodiscover.yaml
+  if [ $? -ne 0 ]; then
+    echo "Failed to apply cluster-autoscaler configuration"
+    exit 1
+  else
+    echo "Cluster autoscaler has been installed successfully."
+  fi
+  sleep 10
+  kubectl -n kube-system annotate deployment.apps/cluster-autoscaler cluster-autoscaler.kubernetes.io/safe-to-evict="false" --overwrite
+}
 
-# create_csi_ebs() {
-#   local cluster_name=$1
-#   set -x
-#   # https://stackoverflow.com/questions/75758115/persistentvolumeclaim-is-stuck-waiting-for-a-volume-to-be-created-either-by-ex
-#   # https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html
-#   eksctl create iamserviceaccount \
-#     --region $region \
-#     --name ebs-csi-controller-sa \
-#     --namespace kube-system \
-#     --cluster ${cluster_name} \
-#     --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
-#     --approve \
-#     --role-only \
-#     --role-name AmazonEKS_EBS_CSI_DriverRole
+create_csi_ebs() {
+  local cluster_name=$1
+  set -x
+  # https://stackoverflow.com/questions/75758115/persistentvolumeclaim-is-stuck-waiting-for-a-volume-to-be-created-either-by-ex
+  # https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html
+  eksctl create iamserviceaccount \
+    --region $region \
+    --name ebs-csi-controller-sa \
+    --namespace kube-system \
+    --cluster ${cluster_name} \
+    --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+    --approve \
+    --role-only \
+    --role-name AmazonEKS_EBS_CSI_DriverRole
 
-#   eksctl create addon \
-#     --region $region \
-#     --name aws-ebs-csi-driver \
-#     --cluster ${cluster_name} \
-#     --service-account-role-arn arn:aws:iam::${acoount}:role/AmazonEKS_EBS_CSI_DriverRole \
-#     --force
-# }
+  eksctl create addon \
+    --region $region \
+    --name aws-ebs-csi-driver \
+    --cluster ${cluster_name} \
+    --service-account-role-arn arn:aws:iam::${acoount}:role/AmazonEKS_EBS_CSI_DriverRole \
+    --force
+}
 
-# create_csi_efs() {
-#   local cluster_name=$1
-#   eksctl create iamserviceaccount \
-#     --region $region \
-#     --name efs-csi-controller-sa \
-#     --namespace kube-system \
-#     --cluster $cluster_name \
-#     --role-name AmazonEKS_EFS_CSI_DriverRole \
-#     --role-only \
-#     --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy \
-#     --approve
+create_csi_efs() {
+  local cluster_name=$1
+  eksctl create iamserviceaccount \
+    --region $region \
+    --name efs-csi-controller-sa \
+    --namespace kube-system \
+    --cluster $cluster_name \
+    --role-name AmazonEKS_EFS_CSI_DriverRole \
+    --role-only \
+    --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy \
+    --approve
 
-#   TRUST_POLICY=$(aws iam get-role --role-name AmazonEKS_EFS_CSI_DriverRole --query 'Role.AssumeRolePolicyDocument' | \
-#     sed -e 's/efs-csi-controller-sa/efs-csi-*/' -e 's/StringEquals/StringLike/')
+  TRUST_POLICY=$(aws iam get-role --role-name AmazonEKS_EFS_CSI_DriverRole --query 'Role.AssumeRolePolicyDocument' | \
+    sed -e 's/efs-csi-controller-sa/efs-csi-*/' -e 's/StringEquals/StringLike/')
 
-#   aws iam update-assume-role-policy --role-name AmazonEKS_EFS_CSI_DriverRole --policy-document "$TRUST_POLICY"
+  aws iam update-assume-role-policy --role-name AmazonEKS_EFS_CSI_DriverRole --policy-document "$TRUST_POLICY"
 
-#   eksctl create addon --region $region \
-#     --cluster $cluster_name \
-#     --name aws-efs-csi-driver \
-#     --version v1.7.1-eksbuild.1 \
-#     --service-account-role-arn arn:aws:iam::${acoount}:role/AmazonEKS_EFS_CSI_DriverRole \
-#     --force
-# }
+  eksctl create addon --region $region \
+    --cluster $cluster_name \
+    --name aws-efs-csi-driver \
+    --version v1.7.1-eksbuild.1 \
+    --service-account-role-arn arn:aws:iam::${acoount}:role/AmazonEKS_EFS_CSI_DriverRole \
+    --force
+}
 
-# confirm_deletion() {
-#   local cluster_name=$1
-#   while true; do
-#       read -p "Do you really want to delete the cluster '${cluster_name}'? (Yes/No) " yn
-#       case $yn in
-#           [Yy]* ) break;;  # If yes, break the loop and continue with deletion
-#           [Nn]* ) echo "Cluster deletion cancelled."; return;;
-#           * ) echo "Please answer Yes or No.";;
-#       esac
-#   done
-# }
+confirm_deletion() {
+  local cluster_name=$1
+  while true; do
+      read -p "Do you really want to delete the cluster '${cluster_name}'? (Yes/No) " yn
+      case $yn in
+          [Yy]* ) break;;  # If yes, break the loop and continue with deletion
+          [Nn]* ) echo "Cluster deletion cancelled."; return;;
+          * ) echo "Please answer Yes or No.";;
+      esac
+  done
+}
 
-# destroy_ingress_nginx() {
-#   helm uninstall ingress-nginx -n ingress-nginx
-# }
+destroy_ingress_nginx() {
+  helm uninstall ingress-nginx -n ingress-nginx
+}
 
-# descale_all_deployments() {
-#   # Get the list of namespaces, excluding header 'NAME'
-#   nss=$(kubectl get ns | awk '!/NAME/{print $1}')
-#   # Iterate over each namespace
-#   for ns in $nss; do
-#       # Get the list of deployments in the current namespace
-#       els=$(kubectl get deployment -n $ns | awk '!/NAME/{print $1}')
-#       # Iterate over each deployment
-#       for el in $els; do
-#           # Scale down the deployment to 0 replicas
-#           echo "Deleting ${ns}/${el}"
-#           kubectl scale deployment -n $ns $el --replicas 0
-#       done
-#   done
-# }
+descale_all_deployments() {
+  # Get the list of namespaces, excluding header 'NAME'
+  nss=$(kubectl get ns | awk '!/NAME/{print $1}')
+  # Iterate over each namespace
+  for ns in $nss; do
+      # Get the list of deployments in the current namespace
+      els=$(kubectl get deployment -n $ns | awk '!/NAME/{print $1}')
+      # Iterate over each deployment
+      for el in $els; do
+          # Scale down the deployment to 0 replicas
+          echo "Deleting ${ns}/${el}"
+          kubectl scale deployment -n $ns $el --replicas 0
+      done
+  done
+}
 
-# delete_cluster() {
-#   local cluster_name=$1
-#   local region=$2
-#   eksctl delete nodegroup --region=$region  --cluster=${cluster_name} --name ${cluster_name}-ng-private-spot1 --disable-eviction --parallel 5
-#   eksctl delete cluster   --region=$region  --name=${cluster_name}
-# }
+delete_cluster() {
+  local cluster_name=$1
+  local region=$2
+  eksctl delete nodegroup --region=$region  --cluster=${cluster_name} --name ${cluster_name}-ng-private-spot1 --disable-eviction --parallel 5
+  eksctl delete cluster   --region=$region  --name=${cluster_name}
+}
 
-# if [ $# -eq 0 ]; then
-#     echo "No arguments provided."
-#     usage
-# fi
+if [ $# -eq 0 ]; then
+    echo "No arguments provided."
+    usage
+fi
 
 # Parsing command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -273,16 +262,16 @@ done
 case "${action}" in
   "create")
     create_cluster "${cluster_name}" "${region}" "${version}" "${cidr}" "${node_type}" "${node_count}" "${node_min}" "${node_max}" "${volume_size}" "${ssh_key_name}"
-    # install_ingress_nginx
-    # install_autoscaler
-    # create_csi_ebs "${cluster_name}"
-    # create_csi_efs "${cluster_name}"
+    install_ingress_nginx
+    install_autoscaler
+    create_csi_ebs "${cluster_name}"
+    create_csi_efs "${cluster_name}"
     ;;
   "delete")
-    # confirm_deletion "${cluster_name}"
-    # descale_all_deployments
-    # destroy_ingress_nginx
-    # delete_cluster "${cluster_name}" "${region}"
+    confirm_deletion "${cluster_name}"
+    descale_all_deployments
+    destroy_ingress_nginx
+    delete_cluster "${cluster_name}" "${region}"
     ;;
   *)
     usage
