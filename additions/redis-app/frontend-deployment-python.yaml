@@ -9,15 +9,17 @@ spec:
     matchLabels:
         app: py-guestbook
         tier: frontend
+        version: v5
   template:
     metadata:
       labels:
         app: py-guestbook
         tier: frontend
+        version: v5
     spec:
       containers:
       - name: py-redis
-        image: docker.io/ansustiwaz/redis-py:latest
+        image: docker.io/ansustiwaz/redis-py:v5
         env:
         - name: REDIS_HOST
           value: "redis-leader"
