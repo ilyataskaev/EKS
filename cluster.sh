@@ -22,6 +22,7 @@ check_command() {
 check_command kubectl
 check_command helm
 check_command eksctl
+check_command aws
 
 usage() {
   cat << EOF
@@ -114,9 +115,28 @@ install_autoscaler() {
   kubectl -n kube-system annotate deployment.apps/cluster-autoscaler cluster-autoscaler.kubernetes.io/safe-to-evict="false" --overwrite
 }
 
+install_calico() {
+  kubectl create namespace tigera-operator
+  helm repo add projectcalico https://docs.tigera.io/calico/charts
+  helm install calico projectcalico/tigera-operator --version v3.26.3 -f additions/calico/values.yaml --namespace tigera-operator
+  kubectl apply -f <(cat <(kubectl get clusterrole aws-node -o yaml) additions/calico/append.yaml)
+  kubectl set env daemonset aws-node -n kube-system ANNOTATE_POD_IP=true
+  pod_name=$(kubectl get pods -n calico-system | grep calico-kube-controllers | awk '{print $1 }')
+  kubectl delete pod $pod_name -n calico-system
+  sleep 15
+  new_pod_name=$(kubectl get pods -n calico-system | grep calico-kube-controllers | awk '{print $1 }')
+  kubectl describe pod $new_pod_name -n calico-system | grep vpc.amazonaws.com/pod-ips
+}
+
+install_cert_manager() {
+  kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.2/cert-manager.yaml
+  sleep 15
+  kubectl create -f additions/cert-manager/cert-issuer.yaml
+  echo "Read this instruction next: additions/cert-manager/README.md"
+}
+
 create_csi_ebs() {
   local cluster_name=$1
-  set -x
   # https://stackoverflow.com/questions/75758115/persistentvolumeclaim-is-stuck-waiting-for-a-volume-to-be-created-either-by-ex
   # https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html
   eksctl create iamserviceaccount \
@@ -133,11 +153,13 @@ create_csi_ebs() {
     --region $region \
     --name aws-ebs-csi-driver \
     --cluster ${cluster_name} \
-    --service-account-role-arn arn:aws:iam::${acoount}:role/AmazonEKS_EBS_CSI_DriverRole \
+    --service-account-role-arn arn:aws:iam::${account}:role/AmazonEKS_EBS_CSI_DriverRole \
     --force
 }
 
 create_csi_efs() {
+  # https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/docs/README.md
+  # https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html
   local cluster_name=$1
   eksctl create iamserviceaccount \
     --region $region \
@@ -158,7 +180,7 @@ create_csi_efs() {
     --cluster $cluster_name \
     --name aws-efs-csi-driver \
     --version v1.7.1-eksbuild.1 \
-    --service-account-role-arn arn:aws:iam::${acoount}:role/AmazonEKS_EFS_CSI_DriverRole \
+    --service-account-role-arn arn:aws:iam::${account}:role/AmazonEKS_EFS_CSI_DriverRole \
     --force
 }
 
@@ -197,7 +219,11 @@ descale_all_deployments() {
 delete_cluster() {
   local cluster_name=$1
   local region=$2
-  eksctl delete nodegroup --region=$region  --cluster=${cluster_name} --name ${cluster_name}-ng-private-spot1 --disable-eviction --parallel 5
+  # eksctl delete nodegroup --region=$region  \
+  #   --cluster=${cluster_name} \
+  #   --name ${cluster_name}-ng-private-spot1 \
+  #   --disable-eviction \
+  #   --parallel 5
   eksctl delete cluster   --region=$region  --name=${cluster_name}
 }
 
@@ -261,11 +287,22 @@ done
 # Main logic based on action
 case "${action}" in
   "create")
-    create_cluster "${cluster_name}" "${region}" "${version}" "${cidr}" "${node_type}" "${node_count}" "${node_min}" "${node_max}" "${volume_size}" "${ssh_key_name}"
+    create_cluster "${cluster_name}" \
+      "${region}" \
+      "${version}" \
+      "${cidr}" \
+      "${node_type}" \
+      "${node_count}" \
+      "${node_min}" \
+      "${node_max}" \
+      "${volume_size}" \
+      "${ssh_key_name}"
     install_ingress_nginx
     install_autoscaler
     create_csi_ebs "${cluster_name}"
     create_csi_efs "${cluster_name}"
+    install_calico
+    install_cert_manager
     ;;
   "delete")
     confirm_deletion "${cluster_name}"

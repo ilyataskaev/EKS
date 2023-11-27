@@ -35,11 +35,6 @@ kubectl create namespace tigera-operator
 Install the Tigera Calico operator and custom resource definitions using the Helm chart:
 
 ```bash
-helm install calico projectcalico/tigera-operator --version v3.26.3 --namespace tigera-operator
-```
-or if you created a values.yaml above:
-
-```bash
 helm install calico projectcalico/tigera-operator --version v3.26.3 -f values.yaml --namespace tigera-operator
 ```
 
