@@ -70,7 +70,7 @@ create_cluster() {
     --external-dns-access
 
   eksctl utils associate-iam-oidc-provider \
-    --region  $region  \
+    --region $region  \
     --cluster $cluster_name \
     --approve
 
@@ -219,12 +219,12 @@ descale_all_deployments() {
 delete_cluster() {
   local cluster_name=$1
   local region=$2
-  # eksctl delete nodegroup --region=$region  \
-  #   --cluster=${cluster_name} \
-  #   --name ${cluster_name}-ng-private-spot1 \
-  #   --disable-eviction \
-  #   --parallel 5
-  eksctl delete cluster   --region=$region  --name=${cluster_name}
+  eksctl delete nodegroup --region=$region  \
+    --cluster=${cluster_name} \
+    --name ${cluster_name}-ng-private-spot1 \
+    --disable-eviction \
+    --parallel 5
+  eksctl delete cluster --region=$region --name=${cluster_name}
 }
 
 if [ $# -eq 0 ]; then
