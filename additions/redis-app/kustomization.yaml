@@ -7,3 +7,4 @@ resources:
 - redis-follower-service.yaml
 - frontend-deployment-python.yaml
 - frontend-service-python.yaml
+- namespace.yaml
