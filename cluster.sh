@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # Default values
 region=eu-central-1
