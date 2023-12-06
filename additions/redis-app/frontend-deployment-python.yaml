@@ -4,7 +4,7 @@ metadata:
   name: py-guestbook-frontend
   namespace: default
 spec:
-  replicas: 1
+  replicas: 4
   labels:
     app: py-guestbook
     tier: frontend
